@@ -6,6 +6,46 @@ It tells what every email and attachment is, pulls the key fields of every invoi
 **Live:** https://hq-ap-inbox-agent.a-mencias99.workers.dev (access code shared separately: the inbox holds real vendor data).
 Built entirely on Cloudflare: Workers, Agents SDK (Durable Objects + WebSockets), Workers AI, D1, AI Gateway.
 
+## How to run it
+
+No API keys are in this repo. The two secret files are git-ignored; `.env.example` and `.dev.vars.example` show what goes in them.
+
+**1. Just use it.** Open the live link above with the access code. Nothing to install.
+
+**2. Run the chat on your own machine** against the data already in D1 (needs a login to the Cloudflare account that holds it; anyone else uses option 3):
+```bash
+npm install
+cp .dev.vars.example .dev.vars        # then set ACCESS_CODE to any value
+npx wrangler login                    # your Cloudflare account
+npm run dev                           # open http://localhost:5173/?code=<ACCESS_CODE>
+```
+
+**3. Rebuild everything from the raw files** (`ap_inbox_candidate.sql` + `attachments.zip`) into your own Cloudflare account.
+Needs Node 22, Python 3.11 (standard library only), poppler (`pdftotext`, `pdftoppm`), Cloudflare Workers Paid, and an API token with Workers AI, D1, AI Gateway and Workers Scripts permissions.
+```bash
+cp .env.example .env                  # then paste your CLOUDFLARE_API_TOKEN and account id
+D=../work                             # any folder OUTSIDE the repo: the inbox data never goes into git
+
+# a) read everything (about 2 minutes, free, local)
+python -I pipeline/load_sql.py ap_inbox_candidate.sql $D/raw.sqlite
+unzip attachments.zip -d $D/attachments
+python -I pipeline/extract_text.py $D/raw.sqlite $D/attachments $D/work.sqlite
+
+# b) classify + extract with Workers AI (about 30 minutes, ~$3; resumable, re-run to retry failures)
+pipeline/run_batch.sh $D/raw.sqlite $D/work.sqlite $D/attachments
+python -I pipeline/judge.py $D/raw.sqlite $D/work.sqlite 80          # optional accuracy sample, ~$1
+
+# c) build the tables and load them into D1
+python -I pipeline/build.py $D/raw.sqlite $D/work.sqlite $D/out.sqlite $D/out.sql
+cat pipeline/fts.sql >> $D/out.sql
+npx wrangler d1 create ap-inbox       # once: put the database id (and your account_id) in wrangler.jsonc
+npx wrangler d1 execute ap-inbox --remote --file $D/out.sql
+
+# d) deploy (GitHub Actions does this on every push to main, using the CLOUDFLARE_API_TOKEN repo secret)
+npx wrangler secret put ACCESS_CODE
+npm run deploy
+```
+
 ---
 
 ## How it works
@@ -124,36 +164,6 @@ pipeline/              offline processing (Python 3.11, standard library only)
   build.py             rules cross-check, self-checks, dedupe, vendor merge, chase matching → D1 SQL
   schema.sql, fts.sql  D1 schema + full-text index
 .github/workflows/deploy.yml   push to main → typecheck → build → wrangler deploy
-```
-
-## Run it
-
-**Prerequisites:** Node 22, Python 3.11, poppler (`pdftotext`, `pdftoppm`), a Cloudflare account with Workers Paid, an API token (Workers AI, D1, AI Gateway, Workers Scripts).
-
-```bash
-# 0. secrets (never committed)
-echo "CLOUDFLARE_API_TOKEN=..." > .env
-echo "AI_GATEWAY_ID=ap-agent"   >> .env
-echo "ACCESS_CODE=choose-one"   > .dev.vars
-
-# 1. offline pipeline (D = a working folder outside the repo)
-python -I pipeline/load_sql.py ap_inbox_candidate.sql $D/raw.sqlite
-unzip attachments.zip -d $D/attachments
-python -I pipeline/extract_text.py $D/raw.sqlite $D/attachments $D/work.sqlite
-pipeline/run_batch.sh $D/raw.sqlite $D/work.sqlite $D/attachments      # resumable; re-run to retry failures
-python -I pipeline/judge.py $D/raw.sqlite $D/work.sqlite 80
-python -I pipeline/build.py $D/raw.sqlite $D/work.sqlite $D/out.sqlite $D/out.sql
-cat pipeline/fts.sql >> $D/out.sql
-
-# 2. load D1 and run
-npx wrangler d1 create ap-inbox                  # once; put the id in wrangler.jsonc
-npx wrangler d1 execute ap-inbox --remote --file $D/out.sql
-npm install
-npm run dev                                      # http://localhost:5173/?code=<ACCESS_CODE>
-
-# 3. deploy (CI does this on every push to main)
-npx wrangler secret put ACCESS_CODE
-npm run deploy
 ```
 
 ## Limits (stated, not hidden)

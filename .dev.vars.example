@@ -1,0 +1,3 @@
+# Secrets for local `npm run dev`. Copy to .dev.vars. Never commit .dev.vars.
+# Anyone who opens the chat needs this code (?code=... in the URL).
+ACCESS_CODE=
