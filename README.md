@@ -53,6 +53,8 @@ Nothing is dropped silently: **every** attachment referenced in the database get
 4. **Confidence**: model confidence < 0.7 is flagged.
 5. **Judge**: a stronger model (GLM-5.3, reasoning on) re-labels a random sample blind; agreement is reported with a 95% confidence interval. (Model-vs-model, not human-labelled; the agent says so.)
 6. **Coverage**: counts of files read by text layer, by vision, missing, password-protected, unreadable.
+7. **Tools before words (enforced in code)**: the first step of every chat turn must be a tool call (`prepareStep` → `toolChoice: "required"`). In testing, the model once drafted a table "from memory" before querying; this makes that impossible.
+8. **No silent failures in the chat**: if the main model is rate-limited the step is retried on a fallback model; any remaining error is shown to the user with the reason.
 
 All of it lands in the `quality` table; the agent's `quality_report` and `review_queue` tools expose it, and the `data-quality` skill tells the agent how to explain it.
 
@@ -107,7 +109,8 @@ agent/                 the agent's brain (imported verbatim into the system prom
   AGENTS.md            operating instructions + full database schema
   skills/*/SKILL.md    payment-chasing, invoice-lookup, data-quality (loaded on demand via load_skill)
 src/
-  server.ts            ChatAgent (AIChatAgent Durable Object), model + gateway wiring, access-code gate
+  server.ts            ChatAgent (AIChatAgent Durable Object, one per browser session), model + fallback +
+                       gateway wiring, tool-first guardrail, access-code gate
   tools.ts             the 9 tools: inbox_overview, vendor_chasing, get_invoice, get_email, search_inbox,
                        quality_report, review_queue, run_sql (read-only), load_skill
   app.tsx              chat UI (Cloudflare agents-starter, trimmed)
