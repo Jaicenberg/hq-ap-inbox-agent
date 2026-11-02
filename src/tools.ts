@@ -302,7 +302,7 @@ export function buildTools(db: D1Database) {
         return {
           status: "DRAFT ONLY: nothing was sent",
           to: to ?? "(vendor address not in the data: this email was forwarded internally)",
-          subject: `Re: ${email.subject}`,
+          subject: `Re: ${String(email.subject).replace(/^((re|fwd?):\s*)+/i, "")}`,
           body: lines.join("\n"),
           basedOn: { email_sent_at: email.sent_at, chase_level: email.chase_level, invoices_on_file: onFile.length, invoices_not_found: notFound.length },
           reviewBeforeSending:
