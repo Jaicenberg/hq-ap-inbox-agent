@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hq-ap-inbox-agent",
+  "account_id": "f1b142072a65e92e0f2913f67917d8e1",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-07-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI", "remote": true },
+  "vars": {
+    // Chat brain (tool calling). Batch extraction models are set in pipeline/ (see README).
+    "CHAT_MODEL": "@cf/zai-org/glm-5.3",
+    "AI_GATEWAY_ID": "ap-agent"
+  },
+  // ACCESS_CODE is a secret: `wrangler secret put ACCESS_CODE` (and in .dev.vars for local dev).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ap-inbox",
+      "database_id": "2ebab7d9-6ca4-4ec2-9d5e-dcf34e4cb588",
+      "remote": true
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/agents/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "class_name": "ChatAgent", "name": "ChatAgent" }]
+  },
+  "migrations": [{ "new_sqlite_classes": ["ChatAgent"], "tag": "v1" }]
+}

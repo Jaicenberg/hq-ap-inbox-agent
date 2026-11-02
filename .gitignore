@@ -1,0 +1,11 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+data/
+*.sqlite
+*.sqlite-journal
+pipeline/out/
+__pycache__/
+dist/
+.access-code
