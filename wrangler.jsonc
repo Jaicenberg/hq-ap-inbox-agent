@@ -10,6 +10,9 @@
   "vars": {
     // Chat brain (tool calling). Batch extraction models are set in pipeline/ (see README).
     "CHAT_MODEL": "@cf/zai-org/glm-5.3",
+    // low = snappy demo answers; high = slower, more thorough multi-step analysis.
+    "CHAT_REASONING": "low",
+    "CHAT_FALLBACK_MODEL": "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
     "AI_GATEWAY_ID": "ap-agent"
   },
   // ACCESS_CODE is a secret: `wrangler secret put ACCESS_CODE` (and in .dev.vars for local dev).

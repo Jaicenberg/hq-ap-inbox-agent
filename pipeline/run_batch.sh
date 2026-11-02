@@ -9,5 +9,6 @@ run @cf/deepseek-ai/deepseek-v4.1-flash-1017 0/2 12 emails &
 run @cf/openai/gpt-oss-120b                  1/2 12 emails &
 run @cf/google/gemma-4-26b-a4b-it            0/2 12 attachments &
 run @cf/zai-org/glm-4.7-flash                1/2 12 attachments &
-run @cf/google/gemma-4-26b-a4b-it            0/1 12 scans &
+run @cf/google/gemma-4-26b-a4b-it            0/2 10 scans &
+run @cf/meta/llama-4-scout-17b-16e-instruct  1/2 10 scans &
 wait

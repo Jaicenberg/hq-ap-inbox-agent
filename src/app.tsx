@@ -316,7 +316,8 @@ function Chat() {
     clearHistory,
     addToolApprovalResponse,
     stop,
-    status
+    status,
+    error
   } = useAgentChat({
     agent,
     experimental_throttle: 100,
@@ -634,6 +635,11 @@ function Chat() {
             );
           })}
 
+          {error && (
+            <div className="rounded-xl border border-kumo-danger bg-kumo-base px-4 py-3 text-sm text-kumo-danger">
+              Something went wrong: {error.message}. Your question was not answered; please send it again.
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
       </div>

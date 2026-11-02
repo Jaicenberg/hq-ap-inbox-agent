@@ -71,9 +71,10 @@ GENERIC_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "iclo
 
 def canonical_vendors(emails, invoices):
     """Map vendor keys that are the same company onto one key.
-    1. Name prefix: 'leafly' absorbs 'leafly holdings' (shorter key must be >= 4 chars).
-    2. Sender domain: keys whose inbound emails come from the same vendor domain merge, unless the
-       domain is a platform used by many vendors (QuickBooks, Bill.com...), detected by key count."""
+    1. Name prefix: 'leafly' absorbs 'leafly holdings' (shorter key must be >= 3 chars).
+    2. Sender domain: keys sent from the same domain merge only when they match the domain's name by
+       first word or acronym ('fpl communications', 'florida power light' on fpl.com). Platforms that
+       relay many vendors (intuit.com, nabis.com) never merge different brands this way."""
     count = Counter(r["vendor_key"] for r in emails + invoices if r["vendor_key"])
     parent = {k: k for k in count}
 
@@ -90,7 +91,7 @@ def canonical_vendors(emails, invoices):
 
     keys = sorted(count, key=len)
     for i, short in enumerate(keys):
-        if len(short) < 4:
+        if len(short) < 3:
             continue
         for long_ in keys[i + 1:]:
             if long_.startswith(short + " "):
@@ -101,11 +102,22 @@ def canonical_vendors(emails, invoices):
         if e["vendor_key"] and e["direction"] == "inbound" and dom and dom not in GENERIC_DOMAINS:
             by_domain[dom][e["vendor_key"]] += 1
     for dom, ks in by_domain.items():
-        main = [k for k, n in ks.items() if n >= 2]
-        if 2 <= len(main) <= 3:  # more than 3 distinct vendors on one domain = a billing platform
-            for k in main[1:]:
-                union(main[0], k)
+        label = dom.split(".")[-2] if dom.count(".") >= 1 else dom
+        same = [k for k, n in ks.items() if n >= 2 and (
+            k.split()[0] == label or "".join(w[0] for w in k.split()) == label or k.replace(" ", "") == label)]
+        for k in same[1:]:
+            union(same[0], k)
     return {k: find(k) for k in count}
+
+
+def short_error(err):
+    """Group failure reasons: raw API errors carry unique request ids."""
+    e = str(err)
+    if "429" in e or "rate limit" in e.lower() or "capacity" in e.lower():
+        return "model rate-limited after retries"
+    if "Expecting" in e or "delimiter" in e or "Unterminated" in e:
+        return "model returned malformed JSON"
+    return e[:80]
 
 
 def num(v):
@@ -188,7 +200,7 @@ def main(raw_db, work_db, out_db, out_sql):
         rtype = rule_type(f"{subj} {names} {clean(body, 1500)}")
         problems = []
         if res is None:
-            problems.append(f"AI could not classify: {err}")
+            problems.append(f"AI could not classify: {short_error(err)}")
             dtype, level, vendor, conf = rtype, rule_chase(f"{subj} {clean(body, 1500)}"), None, 0.0
             refs, amount = [], None
         else:
@@ -203,7 +215,7 @@ def main(raw_db, work_db, out_db, out_sql):
             refs = [str(r) for r in (res.get("chased_invoices") or []) if r][:40]
             amount = num(res.get("amount_due"))
             if conf < 0.7:
-                problems.append(f"low model confidence ({conf:.2f})")
+                problems.append("low model confidence (< 0.7)")
             if rtype != dtype and {rtype, dtype} != {"invoice", "other"}:
                 problems.append(f"keyword rules say '{rtype}', AI says '{dtype}'")
         emails[mid] = dict(id=mid, conversation_id=conv, direction=ev.lower(), sent_at=at, from_name=fname,
@@ -229,7 +241,7 @@ def main(raw_db, work_db, out_db, out_sql):
             problems.append(f"cannot read file: {note}")
             dtype = "unknown"
         elif res is None:
-            problems.append(f"AI could not classify: {err or 'not processed'}")
+            problems.append(f"AI could not classify: {short_error(err or 'not processed')}")
             dtype = rtype if status == "ok" else "unknown"
         else:
             dtype = res.get("type") if res.get("type") in TYPES else "other"
@@ -238,7 +250,7 @@ def main(raw_db, work_db, out_db, out_sql):
                 text = res["page_text"]
                 status = "ok_vision"
             if conf < 0.7:
-                problems.append(f"low model confidence ({conf:.2f})")
+                problems.append("low model confidence (< 0.7)")
             if status == "ok" and rtype != dtype and {rtype, dtype} != {"invoice", "other"}:
                 problems.append(f"keyword rules say '{rtype}', AI says '{dtype}'")
             for ref in (res.get("listed_invoices") or [])[:40]:

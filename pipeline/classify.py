@@ -177,7 +177,8 @@ def run_scans(db, att_dir, limit):
     files = {f.split("__", 1)[0]: os.path.join(att_dir, f) for f in os.listdir(att_dir)}
     todo = [(fid, name) for fid, name in db.execute(
         "SELECT id, filename FROM attachment_text WHERE read_status='needs_ocr' AND is_inline=0")
-        if "scan:" + fid not in done][:limit]
+        if "scan:" + fid not in done
+        and int(hashlib.sha1(fid.encode()).hexdigest()[:8], 16) % SHARD[1] == SHARD[0]][:limit]
     print(f"scans: {len(todo)} page images to read with the vision model")
 
     def work(item):

@@ -18,6 +18,7 @@ PRICES = {
     "@cf/deepseek-ai/deepseek-v4.1-flash-1017": (0.30, 1.20),
     "@cf/zai-org/glm-5.3": (1.40, 4.40),
     "@cf/openai/gpt-oss-120b": (0.35, 0.75),
+    "@cf/meta/llama-4-scout-17b-16e-instruct": (0.27, 0.85),
 }
 
 
