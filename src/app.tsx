@@ -499,7 +499,7 @@ function Chat() {
                   {[
                     "Give me an overview of the inbox",
                     "Which vendors are chasing payment, and how far did they go?",
-                    "Are the invoices Connected is chasing actually in the inbox?",
+                    "Which invoices are vendors chasing that we never received?",
                     "How accurate are you, and what couldn't you read?"
                   ].map((prompt) => (
                     <Button
