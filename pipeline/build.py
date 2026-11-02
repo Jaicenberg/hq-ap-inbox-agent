@@ -117,6 +117,8 @@ def short_error(err):
         return "model rate-limited after retries"
     if "Expecting" in e or "delimiter" in e or "Unterminated" in e:
         return "model returned malformed JSON"
+    if e.startswith("'fil_"):
+        return "attachment file could not be opened for the vision model"
     return e[:80]
 
 
