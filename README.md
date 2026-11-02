@@ -18,7 +18,7 @@ Built entirely on Cloudflare: Workers, Agents SDK (Durable Objects + WebSockets)
         │  pdftotext (free, local) for 7,424 files                            ▼
         │  scans/images flagged for vision                               ChatAgent  = AIChatAgent Durable Object
         ▼                                                                 · conversation persisted in its SQLite
-  classify.py  ── Workers AI (via AI Gateway) ──►  type + fields          · GLM-5.3 (Workers AI) with 9 tools
+  classify.py  ── Workers AI (via AI Gateway) ──►  type + fields          · GLM-5.3 (Workers AI) with 10 tools
         │  emails: 8 per call · docs: 1 per unique text · scans: vision   · instructions = agent/SOUL.md + AGENTS.md
   judge.py     ── stronger model re-labels a blind sample ──► accuracy    · skills loaded on demand (agent/skills)
   build.py     ── rules cross-check, self-checks, dedupe, vendor merge,         │  read-only SQL / FTS5
@@ -111,8 +111,9 @@ agent/                 the agent's brain (imported verbatim into the system prom
 src/
   server.ts            ChatAgent (AIChatAgent Durable Object, one per browser session), model + fallback +
                        gateway wiring, tool-first guardrail, access-code gate
-  tools.ts             the 9 tools: inbox_overview, vendor_chasing, get_invoice, get_email, search_inbox,
-                       quality_report, review_queue, run_sql (read-only), load_skill
+  tools.ts             the 10 tools: inbox_overview, vendor_chasing, get_invoice, get_email, search_inbox,
+                       quality_report, review_queue, draft_reply (drafts only, never sends),
+                       run_sql (read-only), load_skill
   app.tsx              chat UI (Cloudflare agents-starter, trimmed)
 pipeline/              offline processing (Python 3.11, standard library only)
   load_sql.py          Postgres COPY dump → SQLite (no Postgres needed)
@@ -160,4 +161,4 @@ npm run deploy
 - Accuracy is measured by self-checks and a model judge, not a human-labelled set.
 - The database keeps the first 3,000 chars of each email and 4,000 of each attachment; very long documents can be cut.
 - Vendor merging is heuristic; the agent mentions which spelling it matched.
-- The chat is read-only by design: it cannot pay, reply or edit.
+- The chat never acts: it cannot pay, send or edit. It can draft a reply for a human to send.

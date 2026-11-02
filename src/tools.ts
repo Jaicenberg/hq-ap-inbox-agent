@@ -106,7 +106,7 @@ export function buildTools(db: D1Database) {
         const ph = keys.map((_, i) => `?${i + 1}`).join(",");
         const timeline = await all(
           db,
-          `SELECT e.sent_at, e.chase_level, e.subject, e.from_email, e.amount_due, e.chased_invoices, e.needs_review, e.review_reason
+          `SELECT e.id email_id, e.sent_at, e.chase_level, e.subject, e.from_email, e.amount_due, e.chased_invoices, e.needs_review, e.review_reason
            FROM emails e WHERE e.doc_type = 'payment_reminder' AND e.vendor_key IN (${ph}) ORDER BY e.sent_at`,
           ...keys
         );
@@ -237,6 +237,77 @@ export function buildTools(db: D1Database) {
                         FROM attachments WHERE needs_review = 1 AND is_inline = 0 LIMIT ?1`
         }[kind];
         return all(db, sql, limit);
+      }
+    }),
+
+    draft_reply: tool({
+      description:
+        "Draft (never send) a reply to a vendor email, e.g. a payment reminder: confirms which chased invoices AP has on file and asks for copies of the ones it cannot find. Get the email_id from vendor_chasing, search_inbox or get_email first.",
+      inputSchema: z.object({
+        email_id: z.string().describe("id of the vendor email to reply to"),
+        note: z
+          .string()
+          .optional()
+          .describe("Anything the user wants added, in their words (e.g. 'payment is scheduled for Friday')")
+      }),
+      execute: async ({ email_id, note }) => {
+        const [email] = await all(
+          db,
+          "SELECT id, sent_at, from_name, from_email, subject, vendor, doc_type, chase_level, amount_due FROM emails WHERE id = ?1",
+          email_id
+        );
+        if (!email) return { error: "No email with that id" };
+        const chased = await all(
+          db,
+          `SELECT invoice_ref, status, matched_total FROM chases
+           WHERE email_id = ?1 AND invoice_ref IS NOT NULL ORDER BY status, invoice_ref`,
+          email_id
+        );
+        const onFile = chased.filter((c) => c.status === "invoice in inbox");
+        const notFound = chased.filter((c) => c.status !== "invoice in inbox");
+        const money = (v: unknown) =>
+          typeof v === "number" ? ` ($${v.toLocaleString("en-US", { minimumFractionDigits: 2 })})` : "";
+        // Forwards come from eaze.com: the vendor's own address is not in the data.
+        const to = String(email.from_email).endsWith("@eaze.com") ? null : email.from_email;
+        const lines = [
+          `Hi ${email.from_name || email.vendor || "team"},`,
+          "",
+          `Thank you for your email "${email.subject}".`
+        ];
+        if (onFile.length) {
+          lines.push("", "We have these invoices on file and they are with our AP team for processing:");
+          onFile.forEach((c) => lines.push(`- ${c.invoice_ref}${money(c.matched_total)}`));
+        }
+        if (notFound.length) {
+          lines.push(
+            "",
+            "We could not find these invoices in our records. Could you please send copies to ap@eaze.com?"
+          );
+          notFound.forEach((c) => lines.push(`- ${c.invoice_ref}`));
+        }
+        if (!chased.length) {
+          lines.push(
+            "",
+            "Could you please send the invoice numbers and copies of the invoices this relates to, so we can match them to our records?"
+          );
+        }
+        if (note) lines.push("", note);
+        lines.push(
+          "",
+          "For payment status questions, please contact APInquiries@Eaze.com.",
+          "",
+          "Best regards,",
+          "Eaze Accounts Payable"
+        );
+        return {
+          status: "DRAFT ONLY: nothing was sent",
+          to: to ?? "(vendor address not in the data: this email was forwarded internally)",
+          subject: `Re: ${email.subject}`,
+          body: lines.join("\n"),
+          basedOn: { email_sent_at: email.sent_at, chase_level: email.chase_level, invoices_on_file: onFile.length, invoices_not_found: notFound.length },
+          reviewBeforeSending:
+            "Invoice status comes from matching invoice numbers in this inbox; payment dates are not in the data."
+        };
       }
     }),
 

@@ -24,7 +24,8 @@ Value conventions:
 
 ## How to answer
 
-1. Pick the narrowest tool: `inbox_overview`, `vendor_chasing`, `get_invoice`, `get_email`, `search_inbox`, `quality_report`, `review_queue`. Use `run_sql` for anything else (read-only `SELECT`, max 200 rows).
+1. Pick the narrowest tool: `inbox_overview`, `vendor_chasing`, `get_invoice`, `get_email`, `search_inbox`, `quality_report`, `review_queue`, `draft_reply`. Use `run_sql` for anything else (read-only `SELECT`, max 200 rows).
+   To draft a reply, find the email first (`vendor_chasing` timelines and `search_inbox` give `email_id`), then call `draft_reply`; show the draft as-is and point out anything to check before sending.
 2. Before a task covered by a skill, call `load_skill` to read it. Skills: see the list below.
 3. Vendor names vary ("NABIFIVE, LLC dba Nabis" vs "Nabis"): match with `LIKE '%term%'` on `vendor`/`vendor_key`, and say which spelling you matched.
 4. If a result looks surprising (zero rows, huge totals), check it with a second query before answering.

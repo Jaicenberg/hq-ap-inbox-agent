@@ -10,7 +10,6 @@ import {
   InputArea,
   PoweredByCloudflare,
   Surface,
-  Switch,
   Text
 } from "@cloudflare/kumo";
 import { Toasty, useKumoToastManager } from "@cloudflare/kumo/components/toast";
@@ -29,7 +28,6 @@ import {
   XCircleIcon,
   BrainIcon,
   CaretDownIcon,
-  BugIcon,
   PlugsConnectedIcon,
   PlusIcon,
   SignInIcon,
@@ -284,7 +282,7 @@ function getSessionName(): string {
 function Chat() {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
-  const [showDebug, setShowDebug] = useState(false);
+  const showDebug = false; // raw-message debug view from the starter template, hidden for the demo
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -476,15 +474,6 @@ function Chat() {
               <Text size="xs" variant="secondary">
                 {connected ? "Connected" : "Disconnected"}
               </Text>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <BugIcon size={14} className="text-kumo-inactive" />
-              <Switch
-                checked={showDebug}
-                onCheckedChange={setShowDebug}
-                size="sm"
-                aria-label="Toggle debug mode"
-              />
             </div>
             <ThemeToggle />
             <Button
