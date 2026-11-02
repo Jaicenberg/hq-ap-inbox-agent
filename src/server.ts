@@ -51,6 +51,9 @@ export class ChatAgent extends AIChatAgent<Env> {
         reasoning: "before-last-message"
       }),
       tools: buildTools(this.env.DB),
+      // Evidence first, enforced in code: the first step of every turn must be a tool call,
+      // so the model cannot write an answer before it has looked at the data.
+      prepareStep: ({ stepNumber }) => (stepNumber === 0 ? { toolChoice: "required" } : undefined),
       stopWhen: stepCountIs(12),
       abortSignal: options?.abortSignal
     });
