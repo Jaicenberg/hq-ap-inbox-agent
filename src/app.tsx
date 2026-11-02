@@ -269,6 +269,16 @@ function getAccessCode(): string {
   return code;
 }
 
+// One conversation (one Durable Object instance) per browser, so visitors don't share a chat.
+function getSessionName(): string {
+  let name = localStorage.getItem("ap-session");
+  if (!name) {
+    name = `chat-${crypto.randomUUID()}`;
+    localStorage.setItem("ap-session", name);
+  }
+  return name;
+}
+
 // ── Main chat ─────────────────────────────────────────────────────────
 
 function Chat() {
@@ -284,6 +294,7 @@ function Chat() {
 
   const agent = useAgent<ChatAgent>({
     agent: "ChatAgent",
+    name: getSessionName(),
     query: { code: getAccessCode() },
     onOpen: useCallback(() => setConnected(true), []),
     onClose: useCallback(() => setConnected(false), []),
